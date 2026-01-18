@@ -50,6 +50,16 @@ Pluto.run()
 - Production amplitudes
 - Quasi-two-body decay channels
 - Phase space integration tools
+- Chew-Mandelstam function for analytic phase space calculation
+
+## Two-Body Channels
+
+The package provides two constructors for two-body decay channels:
+
+- `TwoBodyChannel(m1, m2; L=0)` - Uses direct square-root formula for phase space calculation
+- `TwoBodyChewMandelstamChannel(m1, m2; L=0)` - Uses Chew-Mandelstam function for analytic phase space calculation
+
+The Chew-Mandelstam implementation provides an analytic continuation of the phase space factor that is normalized such that the real part is zero at threshold and the imaginary part approaches 1 at high energy. This is useful for dispersion relations and K-matrix calculations.
 
 ## License
 

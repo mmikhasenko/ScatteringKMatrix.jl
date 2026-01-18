@@ -8,6 +8,8 @@ using Parameters
 using QuadGK
 
 export TwoBodyChannel, iρ
+export TwoBodyChewMandelstamChannel
+export ChewMandestam
 export threshold
 include("two-body-channel.jl")
 
