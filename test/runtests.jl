@@ -170,3 +170,34 @@ end
     ch_l1 = TwoBodyChewMandelstamChannel(1.1, 1.1; L=1)
     @test_throws ErrorException iρ(ch_l1, 3.0)
 end
+
+@testset "K-matrix with TwoBodyChewMandelstamChannel" begin
+    # Create channels using Chew-Mandelstam
+    channels_cm = SVector(
+        TwoBodyChewMandelstamChannel(1.1, 1.1),
+        TwoBodyChewMandelstamChannel(2.2, 2.2),
+    )
+
+    # Create K-matrix and T-matrix
+    MG = [(M=5.3, gs=[1.2, 0.48])]
+    K = KMatrix(MG)
+    T = TMatrix(K, channels_cm)
+
+    @test nchannels(T) == 2
+    @test npoles(T) == 1
+
+    # Test amplitude calculation
+    m = 5.0
+    A = amplitude(T, m)
+    @test size(A) == (2, 2)
+    @test A ≈ transpose(A) # Check hermiticity
+    #
+    @test isapprox(
+        amplitude(T, 5.0),
+        [
+            0.30102044275247963-0.09751950975706329im 0.12040817710099183-0.03900780390282532im
+            0.12040817710099186-0.03900780390282533im 0.04816327084039675-0.015603121561130133im
+        ],
+        atol=1e-6,
+    )
+end
