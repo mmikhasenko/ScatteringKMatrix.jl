@@ -143,6 +143,11 @@ end
     @test abs(imag(cm_very_high)) ≈ 1.0 atol = 1e-3
     @test abs(imag(irho_very_high)) ≈ 1.0 atol = 1e-3
     @test imag(cm_very_high) ≈ imag(irho_very_high) atol = 1e-5
+
+    # Test 4: Check real part normalization - should be zero at threshold
+    io_small = 1e-9im
+    cm_at_threshold = ChewMandestam(sth + io_small, m1sq, m2sq)
+    @test abs(cm_at_threshold) < 1.5e-5
 end
 
 @testset "TwoBodyChewMandelstamChannel" begin

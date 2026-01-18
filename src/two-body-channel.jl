@@ -47,6 +47,10 @@ end
 
 Calculate the Chew-Mandelstam function for a two-body channel.
 
+The function is normalized such that:
+- The real part is zero at threshold: Re[C(s_th)] = 0 where s_th = (m₁ + m₂)²
+- The imaginary part approaches 1 at high s: Im[C(s)] → 1 as s → ∞
+
 # Arguments
 - `s::Number`: Squared center-of-mass energy
 - `m1sq::Number`: Squared mass of first particle
