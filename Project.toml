@@ -1,7 +1,7 @@
 name = "ScatteringKMatrix"
 uuid = "dbb8acb7-2292-4e86-9e45-2a3a36745847"
 authors = ["Mikhail Mikhasenko <mikhail.mikhasenko@cern.ch>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 HadronicLineshapes = "49c9d978-1f9d-4e96-a984-0a9783c0b9bf"
