@@ -13,7 +13,7 @@ export ChewMandestam
 export threshold
 include("two-body-channel.jl")
 
-export ContinuationChannel, continue_channels
+export ContinuationChannel, AngledCutChannel, continue_channels
 include("continuation-channel.jl")
 
 export real_ρ
