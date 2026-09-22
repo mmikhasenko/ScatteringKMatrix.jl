@@ -1,0 +1,12 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ScatteringKMatrix = "dbb8acb7-2292-4e86-9e45-2a3a36745847"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[sources]
+ScatteringKMatrix = {path = ".."}
+
+[compat]
+CairoMakie = "0.15"
+StaticArrays = "1.9"
+julia = "1.11"
