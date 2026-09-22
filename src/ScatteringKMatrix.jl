@@ -13,6 +13,9 @@ export ChewMandestam
 export threshold
 include("two-body-channel.jl")
 
+export ContinuationChannel, AngledCutChannel, continue_channels
+include("continuation-channel.jl")
+
 export real_ρ
 export nominal_threshold
 export QuasiTwoBodyChannel, QuasiTwoBodyChannelBW

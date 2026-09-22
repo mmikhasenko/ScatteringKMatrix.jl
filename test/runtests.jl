@@ -152,6 +152,9 @@ end
 
 @testset "TwoBodyChewMandelstamChannel" begin
     ch = TwoBodyChewMandelstamChannel(1.1, 1.1)
+    @test TwoBodyChannel(ch) == TwoBodyChannel(1.1, 1.1)
+    @test TwoBodyChannel(TwoBodyChewMandelstamChannel(0.14, 1.87)) ==
+          TwoBodyChannel(0.14, 1.87)
     @test ch.m1 == 1.1 + 0.0im
     @test ch.m2 == 1.1 + 0.0im
     @test ch.L == 0
@@ -200,4 +203,186 @@ end
         ],
         atol=1e-6,
     )
+end
+
+@testset "Chew-Mandelstam analytic continuation" begin
+    # Sheet II differs from sheet I by the right-hand-cut discontinuity.
+    # Modes 12 and -90 then select where that second sheet is used.
+    for (m1, m2) in ((1.1, 1.1), (0.14, 1.87))
+        ch = TwoBodyChewMandelstamChannel(m1, m2)
+        first_sheet = ContinuationChannel(ch)
+        second_sheet = ContinuationChannel(ch, 2)
+        glued_sheet = ContinuationChannel(ch, 12)
+        cut_sheet = ContinuationChannel(ch, -90)
+        th = threshold(ch)
+
+        @test first_sheet.mode == 1
+        @test threshold(first_sheet) == th
+        @test_throws ArgumentError ContinuationChannel(ch, 3)
+        @test_throws ArgumentError ContinuationChannel(ch, 90)
+        @test_throws ErrorException iρ(
+            ContinuationChannel(TwoBodyChewMandelstamChannel(m1, m2; L=1), 2),
+            th + 1,
+        )
+
+        for m in (th + 0.3, th + 1.0, 2 * th)
+            ε = 1e-7
+            jump = iρ(second_sheet, m) - iρ(first_sheet, m)
+            disc = iρ(ch, m + im * ε) - iρ(ch, m - im * ε)
+            @test jump ≈ disc atol = 1e-5
+            @test real(jump) ≈ 0 atol = 1e-8
+            @test imag(jump) > 0
+
+            # Continuation through the cut: II just below matches I just above.
+            @test iρ(first_sheet, m + im * ε) ≈ iρ(second_sheet, m - im * ε) atol = 1e-4
+            @test abs(iρ(glued_sheet, m + im * ε) - iρ(glued_sheet, m - im * ε)) < 1e-4
+            @test abs(iρ(cut_sheet, m + im * ε) - iρ(cut_sheet, m - im * ε)) < 1e-4
+
+            # The real axis and the upper half-plane stay on sheet I,
+            # except for the fixed second sheet.
+            @test iρ(first_sheet, m) == iρ(ch, m)
+            @test iρ(glued_sheet, m) == iρ(ch, m)
+            @test iρ(cut_sheet, m) == iρ(ch, m)
+            @test !(iρ(second_sheet, m) ≈ iρ(ch, m))
+            @test iρ(glued_sheet, m + 0.2im) == iρ(first_sheet, m + 0.2im)
+            @test iρ(cut_sheet, m + 0.2im) == iρ(first_sheet, m + 0.2im)
+            @test iρ(glued_sheet, m - 0.2im) == iρ(second_sheet, m - 0.2im)
+            @test iρ(cut_sheet, m - 0.2im) == iρ(second_sheet, m - 0.2im)
+        end
+
+        # Below threshold only mode 12 is on sheet II. Mode -90 keeps the
+        # physical cut, so it still tracks sheet I.
+        m_below = 0.7 * th
+        @test iρ(glued_sheet, m_below + 0.2im) == iρ(first_sheet, m_below + 0.2im)
+        @test iρ(glued_sheet, m_below - 0.2im) == iρ(second_sheet, m_below - 0.2im)
+        @test iρ(cut_sheet, m_below - 0.2im) == iρ(first_sheet, m_below - 0.2im)
+        @test abs(iρ(glued_sheet, m_below + im * 1e-4) - iρ(glued_sheet, m_below - im * 1e-4)) > 0.1
+        @test abs(iρ(cut_sheet, m_below + im * 1e-4) - iρ(cut_sheet, m_below - im * 1e-4)) < 1e-3
+        # The branch point itself stays on sheet I.
+        @test iρ(cut_sheet, th - im * 1e-4) == iρ(first_sheet, th - im * 1e-4)
+    end
+
+    channels_cm = SVector(
+        TwoBodyChewMandelstamChannel(1.5, 1.5),
+        TwoBodyChewMandelstamChannel(0.5, 0.5),
+        TwoBodyChewMandelstamChannel(1.0, 1.0),
+    )
+    # Thresholds are 3, 1, 2. Selection follows the threshold, not storage order.
+    @test getproperty.(continue_channels(channels_cm, 0.2), :mode) == SVector(1, 1, 1)
+    @test getproperty.(continue_channels(channels_cm, 1.0), :mode) == SVector(1, 12, 1)
+    @test getproperty.(continue_channels(channels_cm, 2.5), :mode) == SVector(1, 12, 12)
+    @test getproperty.(continue_channels(channels_cm, 3.0), :mode) == SVector(12, 12, 12)
+    @test getproperty.(continue_channels(channels_cm, 2.5; mode=2), :mode) == SVector(1, 2, 2)
+    @test getproperty.(continue_channels(channels_cm, 2.5; mode=-90), :mode) == SVector(1, -90, -90)
+    @test_throws ArgumentError continue_channels(SVector(TwoBodyChannel(1.0, 1.0)), 3.0)
+    @test_throws ArgumentError continue_channels(channels_cm, 2.5; mode=3)
+
+    K = KMatrix([(M=3.5, gs=[1.0, 0.5, 0.2])])
+    physical = TMatrix(K, channels_cm)
+    continued = TMatrix(K, continue_channels(channels_cm, 2.5))
+    # Reference mass 2.5 continues the channels with thresholds 1 and 2.
+    # Above the real axis, and on it, that sheet still agrees with the physical one.
+    @test amplitude(continued, 2.4 + 0.1im) ≈ amplitude(physical, 2.4 + 0.1im)
+    @test amplitude(continued, 2.4) ≈ amplitude(physical, 2.4)
+    lower = amplitude(continued, 2.4 - 0.1im)
+    @test !(lower ≈ amplitude(physical, 2.4 - 0.1im))
+    @test lower ≈ transpose(lower)
+    @test isfinite(detD(continued, 2.4 - 0.1im))
+
+    between = TMatrix(K, continue_channels(channels_cm, 1.5))
+    @test detD(between, 1.5 + 0.1im) ≈ detD(physical, 1.5 + 0.1im)
+    @test !(detD(between, 1.5 - 0.1im) ≈ detD(physical, 1.5 - 0.1im))
+    @test isfinite(detD(between, 1.5 - 0.1im))
+end
+
+@testset "Angled Chew-Mandelstam cut" begin
+    for (m1, m2) in ((1.1, 1.1), (0.14, 1.87))
+        ch = TwoBodyChewMandelstamChannel(m1, m2)
+        th = threshold(ch)
+        first_sheet = ContinuationChannel(ch, 1)
+        second_sheet = ContinuationChannel(ch, 2)
+        # cut_angle is in radians. 0 is mode 1, and -π/2 is mode -90.
+        down = AngledCutChannel(ch, -π / 2)
+        along_axis = AngledCutChannel(ch, 0)
+        flat = AngledCutChannel(ch, -π)
+        shallow = AngledCutChannel(ch, -π / 6)
+
+        @test threshold(down) == th
+        @test down.cut_angle == -π / 2
+        @test along_axis.cut_angle == 0
+        @test_throws ArgumentError AngledCutChannel(ch, 2π)
+        @test_throws ArgumentError AngledCutChannel(ch, -π - 0.1)
+        @test_throws ErrorException iρ(
+            AngledCutChannel(TwoBodyChewMandelstamChannel(m1, m2; L=1), -π / 2),
+            th + 1,
+        )
+
+        samples = (
+            th + 0.4,
+            th + 0.7 + 0.2im,
+            th + 0.5 * cis(-π / 12),
+            th + 0.5 * cis(-π / 2),
+            th + 0.5 * cis(-5π / 6),
+            th - 0.4 + 0.3im,
+            0.6 * th - 0.2im,
+        )
+        for m in samples
+            @test iρ(down, m) == iρ(ContinuationChannel(ch, -90), m)
+            @test iρ(along_axis, m) == iρ(ContinuationChannel(ch, 1), m)
+            @test iρ(flat, m) == iρ(ContinuationChannel(ch, 12), m)
+        end
+
+        # Inside the -π/6 wedge the shallow cut is on sheet II.
+        # Below that ray it is still on sheet I, unlike mode -90.
+        inside = th + 0.8 * cis(-π / 12)
+        below_ray = th + 0.8 * cis(-π / 2)
+        @test iρ(shallow, inside) == iρ(second_sheet, inside)
+        @test iρ(shallow, below_ray) == iρ(first_sheet, below_ray)
+        @test iρ(shallow, th + 0.8 + 0.2im) == iρ(first_sheet, th + 0.8 + 0.2im)
+
+        # The real-axis cut is glued; the discontinuity sits on the ray.
+        m_cut = th + 1.0
+        ε = 1e-6
+        @test abs(iρ(shallow, m_cut + im * ε) - iρ(shallow, m_cut - im * ε)) < 1e-4
+        α = -π / 6
+        radius = 0.8
+        toward_axis = th + radius * cis(α + 1e-3)
+        past_ray = th + radius * cis(α - 1e-3)
+        @test iρ(shallow, toward_axis) == iρ(second_sheet, toward_axis)
+        @test iρ(shallow, past_ray) == iρ(first_sheet, past_ray)
+        @test abs(iρ(shallow, toward_axis) - iρ(shallow, past_ray)) > 0.1
+
+        # A positive angle mirrors the wedge into the upper half-plane.
+        raised = AngledCutChannel(ch, π / 6)
+        upper = th + 0.8 * cis(π / 12)
+        lower = th + 0.8 * cis(-π / 12)
+        @test iρ(raised, upper) == iρ(second_sheet, upper)
+        @test iρ(raised, lower) == iρ(first_sheet, lower)
+    end
+
+    channels_cm = SVector(
+        TwoBodyChewMandelstamChannel(1.5, 1.5),
+        TwoBodyChewMandelstamChannel(0.5, 0.5),
+        TwoBodyChewMandelstamChannel(1.0, 1.0),
+    )
+    # Thresholds are 3, 1, 2. The closed channel uses angle 0 so the vector
+    # stays a single concrete element type.
+    rotated = SVector(
+        AngledCutChannel(channels_cm[1], 0),
+        AngledCutChannel(channels_cm[2], -π / 6),
+        AngledCutChannel(channels_cm[3], -π / 6),
+    )
+    @test eltype(rotated) <: AngledCutChannel
+    @test getproperty.(rotated, :cut_angle) == SVector(0, -π / 6, -π / 6)
+    @test iρ(rotated[1], 2.4 - 0.2im) == iρ(ContinuationChannel(channels_cm[1], 1), 2.4 - 0.2im)
+
+    K = KMatrix([(M=3.5, gs=[1.0, 0.5, 0.2])])
+    physical = TMatrix(K, channels_cm)
+    continued = TMatrix(K, rotated)
+    @test amplitude(continued, 2.4) ≈ amplitude(physical, 2.4)
+    @test amplitude(continued, 2.4 + 0.1im) ≈ amplitude(physical, 2.4 + 0.1im)
+    lower = amplitude(continued, 2.4 - 0.05im)
+    @test !(lower ≈ amplitude(physical, 2.4 - 0.05im))
+    @test lower ≈ transpose(lower)
+    @test isfinite(detD(continued, 2.4 - 0.05im))
 end

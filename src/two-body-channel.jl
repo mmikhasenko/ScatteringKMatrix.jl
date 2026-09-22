@@ -92,6 +92,9 @@ end
 
 TwoBodyChewMandelstamChannel(m1, m2; L::Int=0) = TwoBodyChewMandelstamChannel(m1, m2, L)
 
+TwoBodyChannel(ch::TwoBodyChewMandelstamChannel) =
+    TwoBodyChannel(ch.m1, ch.m2; L=ch.L)
+
 threshold(ch::TwoBodyChewMandelstamChannel) = real(ch.m1 + ch.m2)
 
 """

@@ -31,6 +31,39 @@ Two-body phase space:
 
 Only `L = 0` is implemented. `ProductionAmplitude` builds the production vector on top of a `TMatrix`. Quasi-two-body channels and a gridded dispersive continuation are available as `QuasiTwoBodyChannel` and `InterpolatedChannel`.
 
+For pole searches, wrap Chew–Mandelstam channels in `ContinuationChannel`.
+The sheet reached between the first and second thresholds is
+
+```julia
+channels_cm = SVector(
+    TwoBodyChewMandelstamChannel(1.1, 1.1),
+    TwoBodyChewMandelstamChannel(1.3, 1.3),
+)
+continued = continue_channels(channels_cm, 2.3)
+T_unphysical = TMatrix(K, continued)
+```
+
+`continue_channels` accepts only `TwoBodyChewMandelstamChannel` entries. Each
+channel open at the reference mass is evaluated on sheet I in the upper
+half-plane and sheet II in the lower half-plane; channels that are still
+closed stay on sheet I. `ContinuationChannel(channel, 2)` keeps the second
+sheet on both sides of the real axis. Mode `-90` is the special case of a cut
+running straight down from threshold.
+
+`AngledCutChannel(channel, α)` places that cut at an arbitrary angle in
+radians, with the same convention as `angle`. `0` stays on sheet I, the same
+as mode `1`. Negative angles drop the cut into the lower half-plane:
+`-π/6` is 30° below the positive real axis, and `-π/2` reproduces mode
+`-90`. Sheet II fills the wedge between the real axis and that ray.
+A channel that stays on sheet I uses angle `0`, so the vector keeps one element type.
+
+```julia
+rotated = SVector(
+    AngledCutChannel(channels_cm[1], -π / 6),
+    AngledCutChannel(channels_cm[2], 0),
+)
+```
+
 ## Tests
 
 From a clone of this repository:
