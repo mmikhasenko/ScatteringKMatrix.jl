@@ -152,6 +152,9 @@ end
 
 @testset "TwoBodyChewMandelstamChannel" begin
     ch = TwoBodyChewMandelstamChannel(1.1, 1.1)
+    @test TwoBodyChannel(ch) == TwoBodyChannel(1.1, 1.1)
+    @test TwoBodyChannel(TwoBodyChewMandelstamChannel(0.14, 1.87)) ==
+          TwoBodyChannel(0.14, 1.87)
     @test ch.m1 == 1.1 + 0.0im
     @test ch.m2 == 1.1 + 0.0im
     @test ch.L == 0
@@ -200,4 +203,93 @@ end
         ],
         atol=1e-6,
     )
+end
+
+@testset "Chew-Mandelstam analytic continuation" begin
+    # Sheet II differs from sheet I by the right-hand-cut discontinuity.
+    # Modes 12 and 90 then select where that second sheet is used.
+    for (m1, m2) in ((1.1, 1.1), (0.14, 1.87))
+        ch = TwoBodyChewMandelstamChannel(m1, m2)
+        first_sheet = ContinuationChannel(ch)
+        second_sheet = ContinuationChannel(ch, 2)
+        glued_sheet = ContinuationChannel(ch, 12)
+        cut_sheet = ContinuationChannel(ch, 90)
+        th = threshold(ch)
+
+        @test first_sheet.where == 1
+        @test threshold(first_sheet) == th
+        @test_throws ArgumentError ContinuationChannel(ch, 3)
+        @test_throws ErrorException iρ(
+            ContinuationChannel(TwoBodyChewMandelstamChannel(m1, m2; L=1), 2),
+            th + 1,
+        )
+
+        for m in (th + 0.3, th + 1.0, 2 * th)
+            ε = 1e-7
+            jump = iρ(second_sheet, m) - iρ(first_sheet, m)
+            disc = iρ(ch, m + im * ε) - iρ(ch, m - im * ε)
+            @test jump ≈ disc atol = 1e-5
+            @test real(jump) ≈ 0 atol = 1e-8
+            @test imag(jump) > 0
+
+            # Continuation through the cut: II just below matches I just above.
+            @test iρ(first_sheet, m + im * ε) ≈ iρ(second_sheet, m - im * ε) atol = 1e-4
+            @test abs(iρ(glued_sheet, m + im * ε) - iρ(glued_sheet, m - im * ε)) < 1e-4
+            @test abs(iρ(cut_sheet, m + im * ε) - iρ(cut_sheet, m - im * ε)) < 1e-4
+
+            # The real axis and the upper half-plane stay on sheet I,
+            # except for the fixed second sheet.
+            @test iρ(first_sheet, m) == iρ(ch, m)
+            @test iρ(glued_sheet, m) == iρ(ch, m)
+            @test iρ(cut_sheet, m) == iρ(ch, m)
+            @test !(iρ(second_sheet, m) ≈ iρ(ch, m))
+            @test iρ(glued_sheet, m + 0.2im) == iρ(first_sheet, m + 0.2im)
+            @test iρ(cut_sheet, m + 0.2im) == iρ(first_sheet, m + 0.2im)
+            @test iρ(glued_sheet, m - 0.2im) == iρ(second_sheet, m - 0.2im)
+            @test iρ(cut_sheet, m - 0.2im) == iρ(second_sheet, m - 0.2im)
+        end
+
+        # Below threshold only mode 12 is on sheet II. Mode 90 keeps the
+        # physical cut, so it still tracks sheet I.
+        m_below = 0.7 * th
+        @test iρ(glued_sheet, m_below + 0.2im) == iρ(first_sheet, m_below + 0.2im)
+        @test iρ(glued_sheet, m_below - 0.2im) == iρ(second_sheet, m_below - 0.2im)
+        @test iρ(cut_sheet, m_below - 0.2im) == iρ(first_sheet, m_below - 0.2im)
+        @test abs(iρ(glued_sheet, m_below + im * 1e-4) - iρ(glued_sheet, m_below - im * 1e-4)) > 0.1
+        @test abs(iρ(cut_sheet, m_below + im * 1e-4) - iρ(cut_sheet, m_below - im * 1e-4)) < 1e-3
+        # The branch point itself stays on sheet I.
+        @test iρ(cut_sheet, th - im * 1e-4) == iρ(first_sheet, th - im * 1e-4)
+    end
+
+    channels_cm = SVector(
+        TwoBodyChewMandelstamChannel(1.5, 1.5),
+        TwoBodyChewMandelstamChannel(0.5, 0.5),
+        TwoBodyChewMandelstamChannel(1.0, 1.0),
+    )
+    # Thresholds are 3, 1, 2. Selection follows the threshold, not storage order.
+    @test getproperty.(continue_channels(channels_cm, 0.2), :where) == SVector(1, 1, 1)
+    @test getproperty.(continue_channels(channels_cm, 1.0), :where) == SVector(1, 12, 1)
+    @test getproperty.(continue_channels(channels_cm, 2.5), :where) == SVector(1, 12, 12)
+    @test getproperty.(continue_channels(channels_cm, 3.0), :where) == SVector(12, 12, 12)
+    @test getproperty.(continue_channels(channels_cm, 2.5; mode=2), :where) == SVector(1, 2, 2)
+    @test getproperty.(continue_channels(channels_cm, 2.5; mode=90), :where) == SVector(1, 90, 90)
+    @test_throws ArgumentError continue_channels(SVector(TwoBodyChannel(1.0, 1.0)), 3.0)
+    @test_throws ArgumentError continue_channels(channels_cm, 2.5; mode=3)
+
+    K = KMatrix([(M=3.5, gs=[1.0, 0.5, 0.2])])
+    physical = TMatrix(K, channels_cm)
+    continued = TMatrix(K, continue_channels(channels_cm, 2.5))
+    # Reference mass 2.5 continues the channels with thresholds 1 and 2.
+    # Above the real axis, and on it, that sheet still agrees with the physical one.
+    @test amplitude(continued, 2.4 + 0.1im) ≈ amplitude(physical, 2.4 + 0.1im)
+    @test amplitude(continued, 2.4) ≈ amplitude(physical, 2.4)
+    lower = amplitude(continued, 2.4 - 0.1im)
+    @test !(lower ≈ amplitude(physical, 2.4 - 0.1im))
+    @test lower ≈ transpose(lower)
+    @test isfinite(detD(continued, 2.4 - 0.1im))
+
+    between = TMatrix(K, continue_channels(channels_cm, 1.5))
+    @test detD(between, 1.5 + 0.1im) ≈ detD(physical, 1.5 + 0.1im)
+    @test !(detD(between, 1.5 - 0.1im) ≈ detD(physical, 1.5 - 0.1im))
+    @test isfinite(detD(between, 1.5 - 0.1im))
 end
