@@ -1,12 +1,13 @@
 """
     ContinuationChannel(channel, mode=1)
 
-Wrap a `TwoBodyChannel` or `TwoBodyChewMandelstamChannel` and select its
-analytic continuation.
-The supported values of `mode` are:
+Wrap a `TwoBodyChannel` or `TwoBodyChewMandelstamChannel`. Each channel defines
+an analytic phase-space function of complex `m` that can be continued to
+multiple Riemann sheets. `mode` controls which sheet is used when evaluating
+that function at `m`:
 
-- `1`: the first-sheet phase-space function;
-- `2`: the second-sheet function throughout the complex plane;
+- `1`: sheet I;
+- `2`: sheet II;
 - `12`: sheet I for `imag(m) >= 0` and sheet II for `imag(m) < 0`;
 - `-90`: as for `12`, but only cross the right-hand cut when
   `real(m) > threshold(channel)`. The cut runs downward from threshold.

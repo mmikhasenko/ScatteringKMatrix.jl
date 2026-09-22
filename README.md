@@ -32,7 +32,9 @@ Two-body phase space:
 Only `L = 0` is implemented. `ProductionAmplitude` builds the production vector on top of a `TMatrix`. Quasi-two-body channels and a gridded dispersive continuation are available as `QuasiTwoBodyChannel` and `InterpolatedChannel`.
 
 For pole searches, wrap either square-root or Chew–Mandelstam channels in
-`ContinuationChannel`.
+`ContinuationChannel`. The channel's phase-space function has branch points
+in the complex mass plane and can be analytically continued to multiple
+sheets. The wrapper's `mode` selects which sheet is evaluated at each mass.
 The sheet reached between the first and second thresholds is
 
 ```julia
