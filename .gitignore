@@ -6,3 +6,4 @@ notebooks/example.jl
 
 anim_*.gif
 *_reim.txt
+.DS_Store

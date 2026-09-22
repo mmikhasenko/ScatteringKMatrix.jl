@@ -1,66 +1,54 @@
 # ScatteringKMatrix.jl
 
-A Julia package for K-matrix formalism in scattering theory.
+K-matrix amplitudes for coupled-channel scattering and production.
 
 ## Installation
-
-To install the package, start Julia REPL and run:
 
 ```julia
 using Pkg
 Pkg.add(url="https://github.com/mmikhasenko/ScatteringKMatrix.jl")
 ```
 
-## Testing
+## Usage
 
-The package comes with a tests>. It is the first step to validate setup.
-To run the test, execute in Julia REPL:
+```julia
+using ScatteringKMatrix
+using StaticArrays
+
+channels = SVector(
+    TwoBodyChannel(1.1, 1.1),
+    TwoBodyChannel(1.3, 1.3),
+)
+K = KMatrix([(M = 4.3, gs = [2.1, 0.0])])
+T = TMatrix(K, channels)
+A = amplitude(T, 5.0)
+```
+
+Two-body phase space:
+
+- `TwoBodyChannel(m1, m2; L=0)` uses the square-root formula.
+- `TwoBodyChewMandelstamChannel(m1, m2; L=0)` uses the Chew–Mandelstam function, with a vanishing real part at threshold and an imaginary part that approaches 1 at high energy.
+
+Only `L = 0` is implemented. `ProductionAmplitude` builds the production vector on top of a `TMatrix`. Quasi-two-body channels and a gridded dispersive continuation are available as `QuasiTwoBodyChannel` and `InterpolatedChannel`.
+
+## Tests
+
+From a clone of this repository:
 
 ```julia
 ] test
 ```
 
-## Interactive Examples
+## Notebooks
 
-This package includes several Pluto notebooks. To run them
-
-- Activate notebooks environment:
+`notebooks/DD1_pipsi.jl` is a Pluto notebook for πJ/ψ scattering with a D-meson subchannel.
 
 ```julia
-julia> ]
-pkg> activate notebooks
-pkg> instantiate
-# backspace
+julia --project=notebooks -e 'using Pkg; Pkg.instantiate(); using Pluto; Pluto.run()'
 ```
 
-- Start Pluto:
-```julia
-using Pluto
-Pluto.run()
-```
-
-- Once Pluto opens in your browser, navigate to the `notebooks` folder in this repository and open any of the following:
-   - `example.jl` - Basic introduction to K-matrix formalism
-   - `DD1_piJpsi.jl` - Analysis of πJ/ψ scattering with D mesons
-
-## Features
-
-- Implementation of K-matrix formalism for multi-channel scattering
-- Support for coupled-channel analysis
-- Production amplitudes
-- Quasi-two-body decay channels
-- Phase space integration tools
-- Chew-Mandelstam function for analytic phase space calculation
-
-## Two-Body Channels
-
-The package provides two constructors for two-body decay channels:
-
-- `TwoBodyChannel(m1, m2; L=0)` - Uses direct square-root formula for phase space calculation
-- `TwoBodyChewMandelstamChannel(m1, m2; L=0)` - Uses Chew-Mandelstam function for analytic phase space calculation
-
-The Chew-Mandelstam implementation provides an analytic continuation of the phase space factor that is normalized such that the real part is zero at threshold and the imaginary part approaches 1 at high energy. This is useful for dispersion relations and K-matrix calculations.
+Open `notebooks/DD1_pipsi.jl` from the Pluto file browser.
 
 ## License
 
-This package is licensed under the MIT License.
+MIT

@@ -1,7 +1,7 @@
 name = "ScatteringKMatrix"
 uuid = "dbb8acb7-2292-4e86-9e45-2a3a36745847"
 authors = ["Mikhail Mikhasenko <mikhail.mikhasenko@cern.ch>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 HadronicLineshapes = "49c9d978-1f9d-4e96-a984-0a9783c0b9bf"
@@ -12,10 +12,10 @@ QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-HadronicLineshapes = "0.4.1"
-Interpolations = "0.15.1"
-LinearAlgebra = "1.11.0"
-Parameters = "0.12.3"
-QuadGK = "2.11.2"
-StaticArrays = "1.0"
-julia = "1.6"
+HadronicLineshapes = "0.4"
+Interpolations = "0.16"
+LinearAlgebra = "1.11"
+Parameters = "0.12"
+QuadGK = "2.11"
+StaticArrays = "1.9"
+julia = "1.11"
