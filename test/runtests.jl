@@ -205,6 +205,66 @@ end
     )
 end
 
+@testset "Square-root phase-space analytic continuation" begin
+    for (m1, m2) in ((1.1, 1.1), (0.14, 1.87))
+        ch = TwoBodyChannel(m1, m2)
+        first_sheet = ContinuationChannel(ch)
+        second_sheet = ContinuationChannel(ch, 2)
+        glued_sheet = ContinuationChannel(ch, 12)
+        cut_sheet = ContinuationChannel(ch, -90)
+        th = threshold(ch)
+
+        @test threshold(first_sheet) == th
+        @test_throws ArgumentError ContinuationChannel(ch, 3)
+        @test_throws ErrorException iρ(
+            ContinuationChannel(TwoBodyChannel(m1, m2; L=1), 2),
+            th + 1,
+        )
+
+        for m in (th + 0.3, th + 1.0, 2 * th)
+            ε = 1e-7
+            @test iρ(second_sheet, m) ≈ -iρ(first_sheet, m)
+            @test iρ(first_sheet, m + im * ε) ≈ iρ(second_sheet, m - im * ε) atol = 1e-5
+            @test abs(iρ(glued_sheet, m + im * ε) - iρ(glued_sheet, m - im * ε)) < 1e-5
+            @test abs(iρ(cut_sheet, m + im * ε) - iρ(cut_sheet, m - im * ε)) < 1e-5
+        end
+
+        # The legacy square-root prescription is precisely the downward-cut
+        # continuation, including away from the real axis.
+        for m in (
+            th + 0.5 + 0.2im,
+            th + 0.5 - 0.2im,
+            0.7 * th + 0.2im,
+            0.7 * th - 0.2im,
+        )
+            @test iρ(cut_sheet, m) ≈ iρ(ch, m)
+        end
+
+        for α in (0, -π / 6, -π / 2, -π, π / 6)
+            angled = AngledCutChannel(ch, α)
+            mode = α == 0 ? 1 : α == -π / 2 ? -90 : α == -π ? 12 : nothing
+            mode === nothing || @test iρ(angled, th + 0.5 - 0.1im) ==
+                                      iρ(ContinuationChannel(ch, mode), th + 0.5 - 0.1im)
+        end
+    end
+
+    channels_sqrt = SVector(
+        TwoBodyChannel(1.5, 1.5),
+        TwoBodyChannel(0.5, 0.5),
+        TwoBodyChannel(1.0, 1.0),
+    )
+    continued = continue_channels(channels_sqrt, 2.5)
+    @test getproperty.(continued, :mode) == SVector(1, 12, 12)
+    @test eltype(continued) <: ContinuationChannel
+
+    K = KMatrix([(M=3.5, gs=[1.0, 0.5, 0.2])])
+    physical = TMatrix(K, map(ch -> ContinuationChannel(ch, 1), channels_sqrt))
+    unphysical = TMatrix(K, continued)
+    @test amplitude(unphysical, 2.4 + 0.1im) ≈ amplitude(physical, 2.4 + 0.1im)
+    @test !(amplitude(unphysical, 2.4 - 0.1im) ≈ amplitude(physical, 2.4 - 0.1im))
+    @test isfinite(detD(unphysical, 2.4 - 0.1im))
+end
+
 @testset "Chew-Mandelstam analytic continuation" begin
     # Sheet II differs from sheet I by the right-hand-cut discontinuity.
     # Modes 12 and -90 then select where that second sheet is used.
@@ -274,7 +334,7 @@ end
     @test getproperty.(continue_channels(channels_cm, 3.0), :mode) == SVector(12, 12, 12)
     @test getproperty.(continue_channels(channels_cm, 2.5; mode=2), :mode) == SVector(1, 2, 2)
     @test getproperty.(continue_channels(channels_cm, 2.5; mode=-90), :mode) == SVector(1, -90, -90)
-    @test_throws ArgumentError continue_channels(SVector(TwoBodyChannel(1.0, 1.0)), 3.0)
+    @test_throws ArgumentError continue_channels(SVector(1.0), 3.0)
     @test_throws ArgumentError continue_channels(channels_cm, 2.5; mode=3)
 
     K = KMatrix([(M=3.5, gs=[1.0, 0.5, 0.2])])

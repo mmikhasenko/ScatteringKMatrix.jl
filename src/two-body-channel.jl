@@ -1,4 +1,5 @@
 abstract type AbstractChannel end
+abstract type AbstractTwoBodyChannel <: AbstractChannel end
 
 """
     TwoBodyChannel(m1, m2; L=0)
@@ -10,7 +11,7 @@ Two-body channel representation with masses `m1`, `m2` and angular momentum `L`.
 - `m2::Complex{Float64}`: Mass of second particle  
 - `L::Int`: Angular momentum quantum number (currently only L=0 implemented)
 """
-struct TwoBodyChannel <: AbstractChannel
+struct TwoBodyChannel <: AbstractTwoBodyChannel
     m1::Complex{Float64}
     m2::Complex{Float64}
     L::Int
@@ -84,7 +85,7 @@ Two-body channel representation using Chew-Mandelstam function for phase space c
 - `m2::Complex{Float64}`: Mass of second particle  
 - `L::Int`: Angular momentum quantum number (currently only L=0 implemented)
 """
-struct TwoBodyChewMandelstamChannel <: AbstractChannel
+struct TwoBodyChewMandelstamChannel <: AbstractTwoBodyChannel
     m1::Complex{Float64}
     m2::Complex{Float64}
     L::Int

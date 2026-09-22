@@ -31,7 +31,10 @@ Two-body phase space:
 
 Only `L = 0` is implemented. `ProductionAmplitude` builds the production vector on top of a `TMatrix`. Quasi-two-body channels and a gridded dispersive continuation are available as `QuasiTwoBodyChannel` and `InterpolatedChannel`.
 
-For pole searches, wrap Chew–Mandelstam channels in `ContinuationChannel`.
+For pole searches, wrap either square-root or Chew–Mandelstam channels in
+`ContinuationChannel`. The channel's phase-space function has branch points
+in the complex mass plane and can be analytically continued to multiple
+sheets. The wrapper's `mode` selects which sheet is evaluated at each mass.
 The sheet reached between the first and second thresholds is
 
 ```julia
@@ -43,12 +46,14 @@ continued = continue_channels(channels_cm, 2.3)
 T_unphysical = TMatrix(K, continued)
 ```
 
-`continue_channels` accepts only `TwoBodyChewMandelstamChannel` entries. Each
-channel open at the reference mass is evaluated on sheet I in the upper
-half-plane and sheet II in the lower half-plane; channels that are still
-closed stay on sheet I. `ContinuationChannel(channel, 2)` keeps the second
-sheet on both sides of the real axis. Mode `-90` is the special case of a cut
-running straight down from threshold.
+`continue_channels` accepts `TwoBodyChannel` and
+`TwoBodyChewMandelstamChannel` entries. Each channel open at the reference
+mass is evaluated on sheet I in the upper half-plane and sheet II in the lower
+half-plane; channels that are still closed stay on sheet I.
+`ContinuationChannel(channel, 2)` keeps the second sheet on both sides of the
+real axis. Mode `-90` is the special case of a cut running straight down from
+threshold. For `TwoBodyChannel`, that mode is also the branch convention used
+by the unwrapped square-root phase space.
 
 `AngledCutChannel(channel, α)` places that cut at an arbitrary angle in
 radians, with the same convention as `angle`. `0` stays on sheet I, the same
@@ -63,6 +68,9 @@ rotated = SVector(
     AngledCutChannel(channels_cm[2], 0),
 )
 ```
+
+See the [continuation heatmap example](docs/README.md) for a side-by-side
+visualization of the square-root and Chew–Mandelstam sheets and cuts.
 
 ## Tests
 
